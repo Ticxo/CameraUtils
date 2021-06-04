@@ -35,8 +35,6 @@ public class TestListener implements Listener {
 					});
 				}
 			};
-			path.addRotationNode(0, 0, 0);
-			path.addRotationNode(20, 66, 75);
 
 			path.addLocationNode(0, new SingleLocation(player.getLocation()));
 			path.addLocationNode(50, new SingleLocation(player.getLocation().clone().add(0, 5, 0)));

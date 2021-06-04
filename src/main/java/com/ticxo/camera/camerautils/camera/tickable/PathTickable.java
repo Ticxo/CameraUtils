@@ -43,8 +43,8 @@ public class PathTickable extends AbstractCameraTickable {
 		positionNodes.put(frame, location);
 	}
 
-	public void addRotationNode(int frame, float yaw, float pitch) {
-		rotationNodes.put(frame, new WrappedRotation(yaw, pitch));
+	public void addRotationNode(int frame, WrappedLocation location) {
+		rotationNodes.put(frame, new WrappedRotation(location.getLocation().getYaw(), location.getLocation().getPitch()));
 	}
 
 	protected boolean linearTick() {
