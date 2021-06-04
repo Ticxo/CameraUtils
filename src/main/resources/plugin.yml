@@ -1,0 +1,6 @@
+name: CameraUtils
+version: ${project.version}
+main: com.ticxo.camera.camerautils.CameraUtils
+api-version: 1.16
+authors: [ Ticxo ]
+description: API for *damn fine* camera animations.
