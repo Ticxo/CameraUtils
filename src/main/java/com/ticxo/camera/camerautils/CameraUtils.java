@@ -3,7 +3,6 @@ package com.ticxo.camera.camerautils;
 import com.ticxo.camera.camerautils.camera.ICamera;
 import com.ticxo.camera.camerautils.manager.TickableManager;
 import lombok.Getter;
-import org.bukkit.Bukkit;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 

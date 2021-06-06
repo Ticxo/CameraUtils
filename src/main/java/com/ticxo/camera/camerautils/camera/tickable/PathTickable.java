@@ -5,9 +5,7 @@ import com.ticxo.camera.camerautils.utils.WrappedRotation;
 import com.ticxo.camera.camerautils.utils.location.WrappedLocation;
 import lombok.Getter;
 import lombok.Setter;
-import org.bukkit.Location;
 
-import java.util.Locale;
 import java.util.TreeMap;
 
 @Getter
