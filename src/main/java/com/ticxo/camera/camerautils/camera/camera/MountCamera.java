@@ -42,10 +42,10 @@ public class MountCamera extends AbstractCamera implements IActionListener {
 	}
 
 	@Override
-	public void setCameraRotation(float yaw, float pitch) {
-		nmsCameraPoint.yaw = yaw;
-		nmsCameraPoint.aC = yaw;
-		nmsCameraPoint.pitch = pitch;
+	public void setCameraRotation(double yaw, double pitch) {
+		nmsCameraPoint.yaw = (float) yaw;
+		nmsCameraPoint.aC = (float) yaw;
+		nmsCameraPoint.pitch = (float) pitch;
 	}
 
 	@Override

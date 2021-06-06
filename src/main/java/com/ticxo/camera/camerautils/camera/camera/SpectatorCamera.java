@@ -107,11 +107,11 @@ public class SpectatorCamera extends AbstractCamera {
 	}
 
 	@Override
-	public void setCameraRotation(float yaw, float pitch) {
+	public void setCameraRotation(double yaw, double pitch) {
 
-		entity.yaw = yaw;
-		entity.aC = yaw;
-		entity.pitch = pitch;
+		entity.yaw = (float) yaw;
+		entity.aC = (float) yaw;
+		entity.pitch = (float) pitch;
 
 	}
 

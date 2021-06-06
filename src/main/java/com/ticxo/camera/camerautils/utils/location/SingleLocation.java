@@ -2,7 +2,7 @@ package com.ticxo.camera.camerautils.utils.location;
 
 import org.bukkit.Location;
 
-public class SingleLocation implements WrappedLocation {
+public class SingleLocation extends AbstractLocation {
 
 	private final Location location;
 

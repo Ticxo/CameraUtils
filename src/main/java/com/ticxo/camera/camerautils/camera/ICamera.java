@@ -1,13 +1,18 @@
 package com.ticxo.camera.camerautils.camera;
 
+import com.ticxo.camera.camerautils.utils.Quaternion;
 import com.ticxo.camera.camerautils.utils.WrappedRotation;
+import com.ticxo.camera.camerautils.utils.location.WrappedLocation;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.util.EulerAngle;
 import org.bukkit.util.Vector;
 
 import java.util.List;
 
-public interface ICamera extends ICameraTickable {
+public interface ICamera extends ICameraTickable, WrappedLocation {
+
+	void activate();
 
 	void addViewer(Player player);
 	void removeViewer(Player player);
@@ -15,7 +20,7 @@ public interface ICamera extends ICameraTickable {
 
 	void setCameraLocation(Location location);
 	void setCameraPosition(Vector position);
-	void setCameraRotation(float yaw, float pitch);
+	void setCameraRotation(double yaw, double pitch);
 
 	void addCameraTickable(ICameraTickable tickable);
 	void setRunning(boolean running);
@@ -24,8 +29,7 @@ public interface ICamera extends ICameraTickable {
 	Location getCurrentLocation();
 
 	static Location lerp(Location pointA, Location pointB, double ratio) {
-		Location loc = pointB.clone().subtract(pointA).multiply(ratio).add(pointA);
-		return loc;
+		return pointB.clone().subtract(pointA).multiply(ratio).add(pointA);
 	}
 
 	static Location serp(double alpha, Location a, Location b, Location c, Location d, double ratio) {
@@ -42,9 +46,7 @@ public interface ICamera extends ICameraTickable {
 		Location b1 = a1.clone().multiply((t2 - t) / (t2 - t0)).add(a2.clone().multiply((t - t0) / (t2 - t0)));
 		Location b2 = a2.clone().multiply((t3 - t) / (t3 - t1)).add(a3.clone().multiply((t - t1) / (t3 - t1)));
 
-		Location loc = b1.multiply((t2 - t) / (t2 - t1)).add(b2.multiply((t - t1) / (t2 - t1)));
-
-		return loc;
+		return b1.multiply((t2 - t) / (t2 - t1)).add(b2.multiply((t - t1) / (t2 - t1)));
 	}
 
 	static WrappedRotation rotLerp(WrappedRotation rotA, WrappedRotation rotB, double ratio) {
@@ -57,6 +59,13 @@ public interface ICamera extends ICameraTickable {
 		return rot;
 	}
 
+	static WrappedRotation rotSlerp(WrappedRotation rotA, WrappedRotation rotB, double ratio) {
+
+		EulerAngle result = Quaternion.slerp(rotA.getEulerAngle(), rotB.getEulerAngle(), ratio);
+
+		return new WrappedRotation(Math.toDegrees(result.getY()), Math.toDegrees(result.getX()));
+	}
+
 	static Location face(Location origin, Location location) {
 		Vector delta = location.toVector().subtract(origin.toVector());
 		float yaw = (float) Math.toDegrees(Math.atan2(delta.getZ(), delta.getX()));
@@ -66,8 +75,6 @@ public interface ICamera extends ICameraTickable {
 
 		origin.setYaw(yaw - 90);
 		origin.setPitch(pitch - 90);
-
-		System.out.println(pitch);
 
 		return origin;
 	}

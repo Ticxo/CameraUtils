@@ -7,7 +7,7 @@ import org.bukkit.World;
 import org.bukkit.util.Vector;
 
 @Getter @Setter
-public class SphericalLocation implements WrappedLocation {
+public class SphericalLocation extends AbstractLocation {
 
 	private final World world;
 

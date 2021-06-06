@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.Location;
 
+import java.util.Locale;
 import java.util.TreeMap;
 
 @Getter
@@ -14,7 +15,7 @@ public class PathTickable extends AbstractCameraTickable {
 
 	private final ICamera camera;
 	private final TreeMap<Integer, WrappedLocation> positionNodes = new TreeMap<>();
-	private final TreeMap<Integer, WrappedRotation> rotationNodes = new TreeMap<>();
+	private final TreeMap<Integer, WrappedLocation> rotationNodes = new TreeMap<>();
 
 	@Setter
 	private boolean isSmooth;
@@ -44,7 +45,7 @@ public class PathTickable extends AbstractCameraTickable {
 	}
 
 	public void addRotationNode(int frame, WrappedLocation location) {
-		rotationNodes.put(frame, new WrappedRotation(location.getLocation().getYaw(), location.getLocation().getPitch()));
+		rotationNodes.put(frame, location);
 	}
 
 	protected boolean linearTick() {
@@ -63,16 +64,16 @@ public class PathTickable extends AbstractCameraTickable {
 			}else {
 				Integer prevFrame = positionNodes.lowerKey(frame);
 				if (prevFrame == null) { // No previous frame. Lerp from current location
-					camera.setCameraLocation(ICamera.lerp(camera.getCurrentLocation(), positionNodes.get(nextFrame).getLocation(), 1 / (double) (nextFrame - frame)));
+					camera.setCameraLocation(positionNodes.get(nextFrame).lerp(camera, 1 / (double) (nextFrame - frame)));
 				} else { // Previous frame exists. Lerp from previous frame
-					camera.setCameraLocation(ICamera.lerp(positionNodes.get(prevFrame).getLocation(), positionNodes.get(nextFrame).getLocation(), (double) (frame - prevFrame) / (nextFrame - prevFrame)));
+					camera.setCameraLocation(positionNodes.get(nextFrame).lerp(positionNodes.get(prevFrame), (double) (frame - prevFrame) / (nextFrame - prevFrame)));
 				}
 			}
 		}
 
 		if (rotationNodes.containsKey(frame)) {
-			WrappedRotation rot = rotationNodes.get(frame);
-			camera.setCameraRotation(rot.getYaw(), rot.getPitch());
+			WrappedLocation rot = rotationNodes.get(frame);
+			camera.setCameraRotation(rot.getLocation().getYaw(), rot.getLocation().getPitch());
 		} else {
 			Integer nextFrame = rotationNodes.higherKey(frame);
 			if (nextFrame == null) {// Last frame reached, stopping
@@ -81,10 +82,9 @@ public class PathTickable extends AbstractCameraTickable {
 				Integer prevFrame = rotationNodes.lowerKey(frame);
 				WrappedRotation rot;
 				if (prevFrame == null) { // No previous frame. Lerp from current location
-					rot = new WrappedRotation(camera.getCurrentLocation().getYaw(), camera.getCurrentLocation().getPitch());
-					rot = ICamera.rotLerp(rot, rotationNodes.get(nextFrame), 1 / (double) (nextFrame - frame));
+					rot = rotationNodes.get(nextFrame).rotLerp(camera, 1 / (double) (nextFrame - frame));
 				} else {
-					rot = ICamera.rotLerp(rotationNodes.get(prevFrame), rotationNodes.get(nextFrame), (double) (frame - prevFrame) / (nextFrame - prevFrame));
+					rot = rotationNodes.get(nextFrame).rotLerp(rotationNodes.get(prevFrame), (double) (frame - prevFrame) / (nextFrame - prevFrame));
 				}
 				camera.setCameraRotation(rot.getYaw(), rot.getPitch());
 			}
@@ -115,35 +115,31 @@ public class PathTickable extends AbstractCameraTickable {
 
 				Integer prevFrame = positionNodes.lowerKey(frame);
 				if (prevFrame == null) { // No previous frame. Lerp from current location
-					Location serp = ICamera.serp(0, camera.getCurrentLocation(), camera.getCurrentLocation(), positionNodes.get(nextFrame).getLocation(), positionNodes.get(nnFrame).getLocation(), 1 / (double) (nextFrame - frame));
-					camera.setCameraLocation(serp);
+					camera.setCameraLocation(positionNodes.get(nextFrame).serp(camera, camera, positionNodes.get(nnFrame), 1 / (double) (nextFrame - frame)));
 				} else { // Previous frame exists. Lerp from previous frame
 					Integer ppFrame = positionNodes.lowerKey(prevFrame);
 					if (ppFrame == null)
 						ppFrame = prevFrame;
 
-					Location serp = ICamera.serp(0, positionNodes.get(ppFrame).getLocation(), positionNodes.get(prevFrame).getLocation(), positionNodes.get(nextFrame).getLocation(), positionNodes.get(nnFrame).getLocation(), (double) (frame - prevFrame) / (nextFrame - prevFrame));
-					camera.setCameraLocation(serp);
+					camera.setCameraLocation(positionNodes.get(nextFrame).serp(positionNodes.get(ppFrame), positionNodes.get(prevFrame), positionNodes.get(nnFrame), (double) (frame - prevFrame) / (nextFrame - prevFrame)));
 				}
 			}
 		}
 
 		if (rotationNodes.containsKey(frame)) {
-			WrappedRotation rot = rotationNodes.get(frame);
-			camera.setCameraRotation(rot.getYaw(), rot.getPitch());
+			WrappedLocation rot = rotationNodes.get(frame);
+			camera.setCameraRotation(rot.getLocation().getYaw(), rot.getLocation().getPitch());
 		} else {
 			Integer nextFrame = rotationNodes.higherKey(frame);
 			if (nextFrame == null) {// Last frame reached, stopping
 				hasRotation = false;
 			}else {
-
 				Integer prevFrame = rotationNodes.lowerKey(frame);
 				WrappedRotation rot;
 				if (prevFrame == null) { // No previous frame. Lerp from current location
-					rot = new WrappedRotation(camera.getCurrentLocation().getYaw(), camera.getCurrentLocation().getPitch());
-					rot = ICamera.rotLerp(rot, rotationNodes.get(nextFrame), 1 / (double) (nextFrame - frame));
+					rot = rotationNodes.get(nextFrame).rotSerp(camera, 1 / (double) (nextFrame - frame));
 				} else {
-					rot = ICamera.rotLerp(rotationNodes.get(prevFrame), rotationNodes.get(nextFrame), (double) (frame - prevFrame) / (nextFrame - prevFrame));
+					rot = rotationNodes.get(nextFrame).rotSerp(rotationNodes.get(prevFrame), (double) (frame - prevFrame) / (nextFrame - prevFrame));
 				}
 				camera.setCameraRotation(rot.getYaw(), rot.getPitch());
 			}

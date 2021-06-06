@@ -3,7 +3,7 @@ package com.ticxo.camera.camerautils.utils.location;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 
-public class EntityLocation implements WrappedLocation {
+public class EntityLocation extends AbstractLocation {
 
 	private final Entity entity;
 
