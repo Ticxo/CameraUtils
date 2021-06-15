@@ -5,26 +5,14 @@ import com.ticxo.camera.camerautils.utils.NMSTools;
 import lombok.Getter;
 import net.minecraft.server.v1_16_R3.*;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.craftbukkit.v1_16_R3.CraftWorld;
-import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import java.util.Arrays;
 import java.util.List;
 
 public class SpectatorCamera extends AbstractCamera {
-
-	private static final List<Pair<EnumItemSlot, net.minecraft.server.v1_16_R3.ItemStack>> emptyEquipment = Arrays.asList(
-			new Pair<>(EnumItemSlot.CHEST, CraftItemStack.asNMSCopy(new ItemStack(Material.AIR))),
-			new Pair<>(EnumItemSlot.FEET, CraftItemStack.asNMSCopy(new ItemStack(Material.AIR))),
-			new Pair<>(EnumItemSlot.HEAD, CraftItemStack.asNMSCopy(new ItemStack(Material.AIR))),
-			new Pair<>(EnumItemSlot.LEGS, CraftItemStack.asNMSCopy(new ItemStack(Material.AIR))),
-			new Pair<>(EnumItemSlot.MAINHAND, CraftItemStack.asNMSCopy(new ItemStack(Material.AIR))),
-			new Pair<>(EnumItemSlot.OFFHAND, CraftItemStack.asNMSCopy(new ItemStack(Material.AIR)))
-	);
 
 	protected final EntityVillager entity;
 	@Getter

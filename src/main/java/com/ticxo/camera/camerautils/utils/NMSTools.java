@@ -4,7 +4,10 @@ import net.minecraft.server.v1_16_R3.EntityPlayer;
 import net.minecraft.server.v1_16_R3.EnumGamemode;
 import net.minecraft.server.v1_16_R3.Packet;
 import net.minecraft.server.v1_16_R3.PacketPlayOutPlayerInfo;
+import org.bukkit.Location;
+import org.bukkit.craftbukkit.v1_16_R3.entity.CraftEntity;
 import org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 public class NMSTools {
@@ -28,6 +31,11 @@ public class NMSTools {
 		for(Packet<?> packet : packets) {
 			nmsPlayer.playerConnection.sendPacket(packet);
 		}
+	}
+
+	public static void setLocation(Entity entity, Location location) {
+		net.minecraft.server.v1_16_R3.Entity nmsEntity = ((CraftEntity) entity).getHandle();
+		nmsEntity.setLocation(location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
 	}
 
 }

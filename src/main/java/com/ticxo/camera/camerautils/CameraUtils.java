@@ -1,8 +1,11 @@
 package com.ticxo.camera.camerautils;
 
 import com.ticxo.camera.camerautils.camera.ICamera;
+import com.ticxo.camera.camerautils.manager.InputManager;
 import com.ticxo.camera.camerautils.manager.TickableManager;
+import com.ticxo.camera.camerautils.packet.CameraChannelHandler;
 import lombok.Getter;
+import org.bukkit.Bukkit;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -12,6 +15,8 @@ public final class CameraUtils extends JavaPlugin implements Listener {
 
 	@Getter
 	private TickableManager tickableManager;
+	@Getter
+	private InputManager inputManager;
 
 	@Override
 	public void onEnable() {
@@ -21,7 +26,10 @@ public final class CameraUtils extends JavaPlugin implements Listener {
 		tickableManager = new TickableManager();
 		tickableManager.start();
 
-		// Bukkit.getPluginManager().registerEvents(new TestListener(), this);
+		inputManager = new InputManager();
+		CameraChannelHandler.setInputManager(inputManager);
+
+		Bukkit.getPluginManager().registerEvents(new TestListener(), this);
 
 	}
 
