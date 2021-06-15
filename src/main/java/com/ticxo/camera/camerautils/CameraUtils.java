@@ -5,7 +5,6 @@ import com.ticxo.camera.camerautils.manager.InputManager;
 import com.ticxo.camera.camerautils.manager.TickableManager;
 import com.ticxo.camera.camerautils.packet.CameraChannelHandler;
 import lombok.Getter;
-import org.bukkit.Bukkit;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -29,7 +28,7 @@ public final class CameraUtils extends JavaPlugin implements Listener {
 		inputManager = new InputManager();
 		CameraChannelHandler.setInputManager(inputManager);
 
-		Bukkit.getPluginManager().registerEvents(new TestListener(), this);
+		// Bukkit.getPluginManager().registerEvents(new TestListener(), this);
 
 	}
 
