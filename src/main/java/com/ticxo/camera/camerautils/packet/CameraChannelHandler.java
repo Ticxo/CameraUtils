@@ -68,42 +68,16 @@ public class CameraChannelHandler extends ChannelDuplexHandler {
 			IInputTracker tracker = inputManager.getInputTracker(player.getBukkitEntity());
 
 			if (packet instanceof PacketPlayInSteerVehicle) {
-
-				tracker.setPlayerEscaped(false);
-
 				PacketPlayInSteerVehicle steer = (PacketPlayInSteerVehicle) packet;
+				tracker.setPlayerEscaped(steer.e());
+
 				WrapperInput input = new WrapperInput(steer.c(), steer.b(), steer.d(), steer.e());
 				tracker.asyncInputEvent(input.clone());
 				Bukkit.getScheduler().runTask(CameraUtils.instance, () -> {
 					tracker.syncInputEvent(input);
 				});
 
-				if(steer.e())
-					tracker.setPlayerEscaped(true);
-
-				packet = new PacketPlayInSteerVehicle() {
-
-					@Override
-					public float b() {
-						return steer.b();
-					}
-
-					@Override
-					public float c() {
-						return steer.c();
-					}
-
-					@Override
-					public boolean d() {
-						return steer.d();
-					}
-
-					@Override
-					public boolean e() {
-						return false;
-					}
-				};
-
+				return;
 			}else if(packet instanceof PacketPlayInArmAnimation) {
 				if(!isDroppingItem) {
 					tracker.asyncLeftClickEvent();
@@ -111,6 +85,7 @@ public class CameraChannelHandler extends ChannelDuplexHandler {
 				}else {
 					isDroppingItem = false;
 				}
+
 				return;
 			}else if(packet instanceof PacketPlayInUseEntity) {
 				PacketPlayInUseEntity useEntity = (PacketPlayInUseEntity) packet;
@@ -119,12 +94,14 @@ public class CameraChannelHandler extends ChannelDuplexHandler {
 					tracker.asyncRightClickEvent();
 					Bukkit.getScheduler().runTask(CameraUtils.instance, tracker::syncRightClickEvent);
 				}
+
 				return;
 			}else if(packet instanceof PacketPlayInHeldItemSlot) {
 				PacketPlayInHeldItemSlot heldItemSlot = (PacketPlayInHeldItemSlot) packet;
 
 				tracker.asyncSwitchHeldSlot(heldItemSlot.b());
 				Bukkit.getScheduler().runTask(CameraUtils.instance, () -> tracker.syncSwitchHeldSlot(heldItemSlot.b()));
+
 				return;
 			}else if(packet instanceof PacketPlayInBlockDig) {
 				PacketPlayInBlockDig dig = (PacketPlayInBlockDig) packet;
@@ -140,6 +117,7 @@ public class CameraChannelHandler extends ChannelDuplexHandler {
 						Bukkit.getScheduler().runTask(CameraUtils.instance, tracker::syncSwapItem);
 						break;
 				}
+				
 				return;
 			}else if(packet instanceof PacketPlayInSpectate) {
 				return;
