@@ -35,7 +35,7 @@ public class NMSTools {
 
 	public static void setLocation(Entity entity, Location location) {
 		net.minecraft.server.v1_16_R3.Entity nmsEntity = ((CraftEntity) entity).getHandle();
-		nmsEntity.setLocation(location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
+		nmsEntity.setPositionRotation(location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
 	}
 
 }

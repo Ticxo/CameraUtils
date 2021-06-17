@@ -2,6 +2,8 @@ package com.ticxo.camera.camerautils.input;
 
 public interface IInputTracker {
 
+	void setPlayerEscaped(boolean escaped);
+
 	void asyncInputEvent(WrapperInput input);
 	void syncInputEvent(WrapperInput input);
 

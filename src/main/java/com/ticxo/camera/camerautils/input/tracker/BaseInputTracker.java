@@ -6,6 +6,12 @@ import com.ticxo.camera.camerautils.input.WrapperInput;
 public class BaseInputTracker implements IInputTracker {
 
 	protected WrapperInput input;
+	protected boolean escaped;
+
+	@Override
+	public void setPlayerEscaped(boolean escaped) {
+		this.escaped = escaped;
+	}
 
 	@Override
 	public void asyncInputEvent(WrapperInput input) {

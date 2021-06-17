@@ -34,6 +34,8 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 	@Getter
 	protected Player cameraController;
 	protected EntityPlayer nmsCameraController;
+	protected boolean escaped;
+	protected int escapeCooldown = 0;
 
 	public ControllerCamera(Player controller, Location location) {
 
@@ -41,17 +43,11 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 
 		anchor = new EntityAreaEffectCloud(world, location.getX(), location.getY() + verticalOffset, location.getZ());
 		anchor.setRadius(0);
-		anchor.setRadiusOnUse(0);
-		anchor.setRadiusPerTick(0);
-		anchor.setDuration(10000000);
 		anchor.setInvisible(true);
 		anchor.setParticle(CraftParticle.toNMS(Particle.BLOCK_CRACK, Material.AIR.createBlockData()));
 
 		hitbox = new EntitySlime(EntityTypes.SLIME, world);
 		hitbox.setInvisible(true);
-		hitbox.setInvulnerable(true);
-		hitbox.setSilent(true);
-		hitbox.setNoAI(true);
 		hitbox.setSize(3, false);
 		hitbox.collides = false;
 
@@ -104,15 +100,12 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 	}
 
 	@Override
+	public void setPlayerEscaped(boolean escaped) {
+		this.escaped = escaped;
+	}
+
+	@Override
 	public void asyncInputEvent(WrapperInput input) {
-
-		if(input.isSneak()) {
-			cameraController.sendActionBar(Component.text(" "));
-
-			PacketPlayOutEntityDestroy destroy = new PacketPlayOutEntityDestroy(anchor.getId(), hitbox.getId());
-			NMSTools.sendPackets(cameraController, destroy);
-			return;
-		}
 
 		cameraController.sendActionBar(Component.join(
 				Component.text(" "),
@@ -126,10 +119,7 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 
 	@Override
 	public void syncInputEvent(WrapperInput input) {
-		if(!input.isSneak())
-			return;
 
-		CameraUtils.instance.getInputManager().unregisterInputTracker(cameraController);
 	}
 
 	@Override
@@ -217,41 +207,67 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 	}
 
 	@Override
+	public boolean tick() {
+
+		if(isRunning()) {
+			escapeCooldown = (escapeCooldown + 1) % 2;
+			if(escaped && escapeCooldown == 0) {
+				PacketPlayOutMount dismount = new PacketPlayOutMount(anchor);
+				PacketPlayOutMount mount = new PacketPlayOutMount(anchor);
+				try {
+					dismount.a(new PacketDataSerializer(null) {
+						@Override
+						public int[] b() {
+							return new int[] { hitbox.getId() };
+						}
+
+						@Override
+						public int i() {
+							return anchor.getId();
+						}
+					});
+					mount.a(new PacketDataSerializer(null) {
+						@Override
+						public int[] b() {
+							return new int[] { cameraController.getEntityId(), hitbox.getId() };
+						}
+
+						@Override
+						public int i() {
+							return anchor.getId();
+						}
+					});
+					NMSTools.sendPackets(cameraController, dismount, mount);
+				} catch (IOException ignore){}
+			}
+		}
+
+		return super.tick();
+	}
+
+	@Override
 	public void setCameraLocation(Location location) {
 		anchor.setLocation(location.getX(), location.getY() + verticalOffset, location.getZ(), 0, 0);
 		nmsCameraController.yaw = location.getYaw();
 		nmsCameraController.aC = location.getYaw();
 		nmsCameraController.pitch = location.getPitch();
 
+		updateServersidePosition();
+
 		PacketPlayOutEntityTeleport teleportAnchor = new PacketPlayOutEntityTeleport(anchor);
-		PacketPlayOutEntityTeleport teleportController = new PacketPlayOutEntityTeleport(nmsCameraController);
 
-		NMSTools.sendPackets(cameraController, teleportAnchor, teleportController);
-
-		Bukkit.getScheduler().runTask(CameraUtils.instance, () -> {
-			Location currentLocation = getCurrentLocation();
-			NMSTools.setLocation(cameraController, currentLocation);
-			for(Player viewer : getViewers()) {
-				NMSTools.setLocation(viewer, currentLocation);
-			}
-		});
+		NMSTools.sendPackets(cameraController, teleportAnchor);
 	}
 
 	@Override
 	public void setCameraPosition(Vector position) {
 		anchor.setPosition(position.getX(), position.getY() + verticalOffset, position.getZ());
 
+		updateServersidePosition();
+
 		PacketPlayOutEntityTeleport teleportAnchor = new PacketPlayOutEntityTeleport(anchor);
 
 		NMSTools.sendPackets(cameraController, teleportAnchor);
-
-		Bukkit.getScheduler().runTask(CameraUtils.instance, () -> {
-			Location currentLocation = getCurrentLocation();
-			NMSTools.setLocation(cameraController, currentLocation);
-			for(Player viewer : getViewers()) {
-				NMSTools.setLocation(viewer, currentLocation);
-			}
-		});
 	}
 
 	@Override
@@ -260,13 +276,30 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 		nmsCameraController.aC = (float) yaw;
 		nmsCameraController.pitch = (float) pitch;
 
-		PacketPlayOutEntityTeleport teleportController = new PacketPlayOutEntityTeleport(nmsCameraController);
+		Vector dir = cameraController.getLocation().getDirection();
+		PacketPlayOutLookAt lookController = new PacketPlayOutLookAt(
+				ArgumentAnchor.Anchor.EYES,
+				nmsCameraController.locX() + dir.getX() * 20,
+				nmsCameraController.locY() + dir.getY() * 20,
+				nmsCameraController.locZ() + dir.getZ() * 20
+		);
 
-		NMSTools.sendPackets(cameraController, teleportController);
+		NMSTools.sendPackets(cameraController, lookController);
 	}
 
 	@Override
 	public Location getCurrentLocation() {
 		return new Location(cameraController.getWorld(), anchor.locX(), anchor.locY() - verticalOffset, anchor.locZ(), nmsCameraController.yaw, nmsCameraController.pitch);
 	}
+
+	protected void updateServersidePosition() {
+		Bukkit.getScheduler().runTask(CameraUtils.instance, () -> {
+			Location currentLocation = getCurrentLocation();
+			NMSTools.setLocation(cameraController, currentLocation);
+			for(Player viewer : getViewers()) {
+				NMSTools.setLocation(viewer, currentLocation);
+			}
+		});
+	}
+
 }
