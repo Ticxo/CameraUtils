@@ -11,11 +11,9 @@ import com.ticxo.camera.camerautils.utils.location.TargetLocation;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -24,12 +22,6 @@ public class TestListener implements Listener {
 
 	@EventHandler
 	public void onClick(PlayerInteractEvent event) {
-
-		Player player = event.getPlayer();
-
-		if(event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getItem() != null && event.getItem().getType() == Material.BLAZE_ROD) {
-			test1(player);
-		}
 
 	}
 

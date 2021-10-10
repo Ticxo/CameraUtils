@@ -12,6 +12,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
+import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -117,7 +118,7 @@ public class CameraChannelHandler extends ChannelDuplexHandler {
 						Bukkit.getScheduler().runTask(CameraUtils.instance, tracker::syncSwapItem);
 						break;
 				}
-				
+
 				return;
 			}else if(packet instanceof PacketPlayInSpectate) {
 				return;
