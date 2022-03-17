@@ -6,11 +6,11 @@ import com.ticxo.camera.camerautils.camera.ICamera;
 import com.ticxo.camera.camerautils.camera.ICameraTickable;
 import com.ticxo.camera.camerautils.utils.WrappedRotation;
 import com.ticxo.camera.camerautils.utils.location.WrappedLocation;
-import net.minecraft.server.v1_16_R3.EnumItemSlot;
-import net.minecraft.server.v1_16_R3.ItemStack;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.v1_18_R1.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -19,13 +19,13 @@ import java.util.List;
 
 public abstract class AbstractCamera implements ICamera {
 
-	protected static final List<Pair<EnumItemSlot, ItemStack>> emptyEquipment = Arrays.asList(
-			new Pair<>(EnumItemSlot.CHEST, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR))),
-			new Pair<>(EnumItemSlot.FEET, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR))),
-			new Pair<>(EnumItemSlot.HEAD, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR))),
-			new Pair<>(EnumItemSlot.LEGS, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR))),
-			new Pair<>(EnumItemSlot.MAINHAND, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR))),
-			new Pair<>(EnumItemSlot.OFFHAND, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR)))
+	protected static final List<Pair<EquipmentSlot, ItemStack>> emptyEquipment = Arrays.asList(
+			new Pair<>(EquipmentSlot.CHEST, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR))),
+			new Pair<>(EquipmentSlot.FEET, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR))),
+			new Pair<>(EquipmentSlot.HEAD, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR))),
+			new Pair<>(EquipmentSlot.LEGS, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR))),
+			new Pair<>(EquipmentSlot.MAINHAND, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR))),
+			new Pair<>(EquipmentSlot.OFFHAND, CraftItemStack.asNMSCopy(new org.bukkit.inventory.ItemStack(Material.AIR)))
 	);
 
 	private final List<Player> viewers = new ArrayList<>();

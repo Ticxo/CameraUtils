@@ -7,12 +7,15 @@ import com.ticxo.camera.camerautils.manager.InputManager;
 import io.netty.channel.*;
 import lombok.Getter;
 import lombok.Setter;
-import net.minecraft.server.v1_16_R3.*;
+import net.minecraft.network.Connection;
+import net.minecraft.network.protocol.game.*;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_18_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
-import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,18 +28,18 @@ public class CameraChannelHandler extends ChannelDuplexHandler {
 	private static final Map<Player, CameraChannelHandler> handlers = new ConcurrentHashMap<>();
 
 	@Getter
-	private final EntityPlayer player;
+	private final ServerPlayer player;
 
 	private boolean isDroppingItem = false;
 
 	public static void injectPlayer(Player player) {
-		EntityPlayer ply = ((CraftPlayer) player).getHandle();
+		ServerPlayer ply = ((CraftPlayer) player).getHandle();
 		CameraChannelHandler cdh = new CameraChannelHandler(ply);
 		handlers.put(player, cdh);
 
-		ChannelPipeline pipeline = ply.playerConnection.networkManager.channel.pipeline();
+		ChannelPipeline pipeline = ply.connection.connection.channel.pipeline();
 		for(String name : pipeline.toMap().keySet()) {
-			if(pipeline.get(name) instanceof NetworkManager) {
+			if(pipeline.get(name) instanceof Connection) {
 				pipeline.addBefore(name, "camera_util_packet_handler", cdh);
 				break;
 			}
@@ -44,7 +47,7 @@ public class CameraChannelHandler extends ChannelDuplexHandler {
 	}
 
 	public static void removePlayer(Player player) {
-		Channel channel = ((CraftPlayer) player).getHandle().playerConnection.networkManager.channel;
+		Channel channel = ((CraftPlayer) player).getHandle().connection.connection.channel;
 		channel.eventLoop().submit(() -> {
 			handlers.remove(player);
 			channel.pipeline().remove("camera_util_packet_handler");
@@ -52,7 +55,7 @@ public class CameraChannelHandler extends ChannelDuplexHandler {
 		});
 	}
 
-	public CameraChannelHandler(EntityPlayer player) {
+	public CameraChannelHandler(ServerPlayer player) {
 		this.player = player;
 	}
 
@@ -68,18 +71,18 @@ public class CameraChannelHandler extends ChannelDuplexHandler {
 
 			IInputTracker tracker = inputManager.getInputTracker(player.getBukkitEntity());
 
-			if (packet instanceof PacketPlayInSteerVehicle) {
-				PacketPlayInSteerVehicle steer = (PacketPlayInSteerVehicle) packet;
-				tracker.setPlayerEscaped(steer.e());
+			if (packet instanceof ServerboundPlayerInputPacket) {
+				ServerboundPlayerInputPacket steer = (ServerboundPlayerInputPacket) packet;
+				tracker.setPlayerEscaped(steer.isShiftKeyDown());
 
-				WrapperInput input = new WrapperInput(steer.c(), steer.b(), steer.d(), steer.e());
+				WrapperInput input = new WrapperInput(steer.getZza(), steer.getXxa(), steer.isJumping(), steer.isShiftKeyDown());
 				tracker.asyncInputEvent(input.clone());
 				Bukkit.getScheduler().runTask(CameraUtils.instance, () -> {
 					tracker.syncInputEvent(input);
 				});
 
 				return;
-			}else if(packet instanceof PacketPlayInArmAnimation) {
+			}else if(packet instanceof ServerboundSwingPacket) {
 				if(!isDroppingItem) {
 					tracker.asyncLeftClickEvent();
 					Bukkit.getScheduler().runTask(CameraUtils.instance, tracker::syncLeftClickEvent);
@@ -88,26 +91,41 @@ public class CameraChannelHandler extends ChannelDuplexHandler {
 				}
 
 				return;
-			}else if(packet instanceof PacketPlayInUseEntity) {
-				PacketPlayInUseEntity useEntity = (PacketPlayInUseEntity) packet;
+			}else if(packet instanceof ServerboundInteractPacket) {
+				ServerboundInteractPacket useEntity = (ServerboundInteractPacket) packet;
 
-				if(useEntity.b() == PacketPlayInUseEntity.EnumEntityUseAction.INTERACT && useEntity.c() == EnumHand.MAIN_HAND) {
-					tracker.asyncRightClickEvent();
-					Bukkit.getScheduler().runTask(CameraUtils.instance, tracker::syncRightClickEvent);
-				}
+				useEntity.dispatch(new ServerboundInteractPacket.Handler() {
+					@Override
+					public void onInteraction(InteractionHand interactionHand) {
+						if(interactionHand != InteractionHand.MAIN_HAND)
+							return;
+						tracker.asyncRightClickEvent();
+						Bukkit.getScheduler().runTask(CameraUtils.instance, tracker::syncRightClickEvent);
+					}
+
+					@Override
+					public void onInteraction(InteractionHand interactionHand, Vec3 vec3) {
+
+					}
+
+					@Override
+					public void onAttack() {
+
+					}
+				});
 
 				return;
-			}else if(packet instanceof PacketPlayInHeldItemSlot) {
-				PacketPlayInHeldItemSlot heldItemSlot = (PacketPlayInHeldItemSlot) packet;
+			}else if(packet instanceof ServerboundSetCarriedItemPacket) {
+				ServerboundSetCarriedItemPacket heldItemSlot = (ServerboundSetCarriedItemPacket) packet;
 
-				tracker.asyncSwitchHeldSlot(heldItemSlot.b());
-				Bukkit.getScheduler().runTask(CameraUtils.instance, () -> tracker.syncSwitchHeldSlot(heldItemSlot.b()));
+				tracker.asyncSwitchHeldSlot(heldItemSlot.getSlot());
+				Bukkit.getScheduler().runTask(CameraUtils.instance, () -> tracker.syncSwitchHeldSlot(heldItemSlot.getSlot()));
 
 				return;
-			}else if(packet instanceof PacketPlayInBlockDig) {
-				PacketPlayInBlockDig dig = (PacketPlayInBlockDig) packet;
+			}else if(packet instanceof ServerboundPlayerActionPacket) {
+				ServerboundPlayerActionPacket dig = (ServerboundPlayerActionPacket) packet;
 
-				switch (dig.d()) {
+				switch (dig.getAction()) {
 					case DROP_ITEM:
 						isDroppingItem = true;
 						tracker.asyncDropItem();
@@ -120,7 +138,7 @@ public class CameraChannelHandler extends ChannelDuplexHandler {
 				}
 
 				return;
-			}else if(packet instanceof PacketPlayInSpectate) {
+			}else if(packet instanceof ServerboundTeleportToEntityPacket) {
 				return;
 			}
 		}

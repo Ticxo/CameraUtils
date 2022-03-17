@@ -5,16 +5,20 @@ import com.ticxo.camera.camerautils.input.WrapperInput;
 import com.ticxo.camera.camerautils.utils.NMSTools;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.format.TextColor;
-import net.minecraft.server.v1_16_R3.*;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.protocol.game.*;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.AreaEffectCloud;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.monster.Slime;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
-import org.bukkit.craftbukkit.v1_16_R3.CraftParticle;
-import org.bukkit.craftbukkit.v1_16_R3.CraftWorld;
+import org.bukkit.craftbukkit.v1_18_R1.CraftParticle;
+import org.bukkit.craftbukkit.v1_18_R1.CraftWorld;
 import org.bukkit.entity.Player;
-
-import java.io.IOException;
 
 public class DefaultInputTracker extends BaseInputTracker {
 
@@ -23,15 +27,15 @@ public class DefaultInputTracker extends BaseInputTracker {
 
 	@Getter
 	protected final Player player;
-	protected final EntityAreaEffectCloud tracker;
-	protected final EntitySlime hitbox;
+	protected final AreaEffectCloud tracker;
+	protected final Slime hitbox;
 
 	public DefaultInputTracker(Player player, Location location) {
 		this.player = player;
 
-		World world = ((CraftWorld) location.getWorld()).getHandle();
+		ServerLevel world = ((CraftWorld) location.getWorld()).getHandle();
 
-		tracker = new EntityAreaEffectCloud(world, location.getX(), location.getY() - 1.645, location.getZ());
+		tracker = new AreaEffectCloud(world, location.getX(), location.getY() - 1.645, location.getZ());
 		tracker.setRadius(0);
 		tracker.setRadiusOnUse(0);
 		tracker.setRadiusPerTick(0);
@@ -39,37 +43,31 @@ public class DefaultInputTracker extends BaseInputTracker {
 		tracker.setInvisible(true);
 		tracker.setParticle(CraftParticle.toNMS(Particle.BLOCK_CRACK, Material.AIR.createBlockData()));
 
-		hitbox = new EntitySlime(EntityTypes.SLIME, world);
+		hitbox = new Slime(EntityType.SLIME, world);
 		hitbox.setInvisible(true);
 		hitbox.setInvulnerable(true);
 		hitbox.setSilent(true);
-		hitbox.setNoAI(true);
+		hitbox.setNoAi(true);
 		hitbox.setSize(3, false);
 		hitbox.collides = false;
 
-		PacketPlayOutSpawnEntity spawnAnchor = new PacketPlayOutSpawnEntity(tracker);
-		PacketPlayOutEntityMetadata metaAnchor = new PacketPlayOutEntityMetadata(tracker.getId(), tracker.getDataWatcher(), true);
+		ClientboundAddEntityPacket spawnAnchor = new ClientboundAddEntityPacket(tracker);
+		ClientboundSetEntityDataPacket metaAnchor = new ClientboundSetEntityDataPacket(tracker.getId(), tracker.getEntityData(), true);
 
-		PacketPlayOutSpawnEntityLiving spawnHitbox = new PacketPlayOutSpawnEntityLiving(hitbox);
-		PacketPlayOutEntityMetadata metaHitbox = new PacketPlayOutEntityMetadata(hitbox.getId(), hitbox.getDataWatcher(), true);
+		ClientboundAddMobPacket spawnHitbox = new ClientboundAddMobPacket(hitbox);
+		ClientboundSetEntityDataPacket metaHitbox = new ClientboundSetEntityDataPacket(hitbox.getId(), hitbox.getEntityData(), true);
 
-		PacketPlayOutMount mount = new PacketPlayOutMount(tracker);
+		ClientboundSetPassengersPacket mount = new ClientboundSetPassengersPacket(new FriendlyByteBuf(null) {
+			@Override
+			public int[] readVarIntArray() {
+				return new int[] { player.getEntityId(), hitbox.getId() };
+			}
 
-		try {
-			mount.a(new PacketDataSerializer(null) {
-				@Override
-				public int[] b() {
-					return new int[] { player.getEntityId(), hitbox.getId() };
-				}
-
-				@Override
-				public int i() {
-					return tracker.getId();
-				}
-			});
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+			@Override
+			public int readVarInt() {
+				return tracker.getId();
+			}
+		});
 
 		NMSTools.sendPackets(player, spawnAnchor, metaAnchor, spawnHitbox, metaHitbox, mount);
 
@@ -84,7 +82,7 @@ public class DefaultInputTracker extends BaseInputTracker {
 		}
 
 		player.sendActionBar(Component.join(
-				Component.text(" "),
+				JoinConfiguration.separator(Component.text(" ")),
 				Component.keybind("key.forward", input.getForward() > 0 ? white : gray),
 				Component.keybind("key.left", input.getSide() > 0 ? white : gray),
 				Component.keybind("key.back", input.getForward() < 0 ? white : gray),
@@ -99,7 +97,7 @@ public class DefaultInputTracker extends BaseInputTracker {
 			return;
 
 		CameraUtils.instance.getInputManager().unregisterInputTracker(player);
-		PacketPlayOutEntityDestroy destroy = new PacketPlayOutEntityDestroy(tracker.getId(), hitbox.getId());
+		ClientboundRemoveEntitiesPacket destroy = new ClientboundRemoveEntitiesPacket(tracker.getId(), hitbox.getId());
 		NMSTools.sendPackets(player, destroy);
 	}
 

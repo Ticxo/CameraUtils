@@ -1,41 +1,41 @@
 package com.ticxo.camera.camerautils.utils;
 
-import net.minecraft.server.v1_16_R3.EntityPlayer;
-import net.minecraft.server.v1_16_R3.EnumGamemode;
-import net.minecraft.server.v1_16_R3.Packet;
-import net.minecraft.server.v1_16_R3.PacketPlayOutPlayerInfo;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.GameType;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_16_R3.entity.CraftEntity;
-import org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_18_R1.entity.CraftEntity;
+import org.bukkit.craftbukkit.v1_18_R1.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 public class NMSTools {
 
-	public static EntityPlayer getNMSPlayer(Player player) {
+	public static ServerPlayer getNMSPlayer(Player player) {
 		return ((CraftPlayer) player).getHandle();
 	}
 
-	public static void hideHotbar(EntityPlayer player) {
+	public static void hideHotbar(ServerPlayer player) {
 
-		player.a(EnumGamemode.CREATIVE);
-		PacketPlayOutPlayerInfo info = new PacketPlayOutPlayerInfo(PacketPlayOutPlayerInfo.EnumPlayerInfoAction.UPDATE_GAME_MODE, player);
-		player.a(EnumGamemode.SPECTATOR);
-		player.playerConnection.networkManager.sendPacket(info);
+		player.setGameMode(GameType.CREATIVE);
+		ClientboundPlayerInfoPacket info = new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.UPDATE_GAME_MODE, player);
+		player.setGameMode(GameType.SPECTATOR);
+		player.connection.connection.send(info);
 
 	}
 
 	public static void sendPackets(Player player, Packet<?>... packets) {
-		EntityPlayer nmsPlayer = getNMSPlayer(player);
+		ServerPlayer nmsPlayer = getNMSPlayer(player);
 
 		for(Packet<?> packet : packets) {
-			nmsPlayer.playerConnection.sendPacket(packet);
+			nmsPlayer.connection.connection.send(packet);
 		}
 	}
 
 	public static void setLocation(Entity entity, Location location) {
-		net.minecraft.server.v1_16_R3.Entity nmsEntity = ((CraftEntity) entity).getHandle();
-		nmsEntity.setPositionRotation(location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
+		net.minecraft.world.entity.Entity nmsEntity = ((CraftEntity) entity).getHandle();
+		nmsEntity.moveTo(location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
 	}
 
 }

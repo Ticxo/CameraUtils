@@ -7,18 +7,27 @@ import com.ticxo.camera.camerautils.input.WrapperInput;
 import com.ticxo.camera.camerautils.utils.NMSTools;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.format.TextColor;
-import net.minecraft.server.v1_16_R3.*;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.protocol.game.*;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.AreaEffectCloud;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.item.ItemStack;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
-import org.bukkit.craftbukkit.v1_16_R3.CraftParticle;
-import org.bukkit.craftbukkit.v1_16_R3.CraftWorld;
+import org.bukkit.craftbukkit.v1_18_R1.CraftParticle;
+import org.bukkit.craftbukkit.v1_18_R1.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -28,50 +37,46 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 	protected static final TextColor white = TextColor.color(255, 255, 255);
 
 	protected final double verticalOffset = -1.645;
-	protected final EntityAreaEffectCloud anchor;
-	protected final EntitySlime hitbox;
+	protected final AreaEffectCloud anchor;
+	protected final Slime hitbox;
 
 	@Getter
 	protected Player cameraController;
-	protected EntityPlayer nmsCameraController;
+	protected ServerPlayer nmsCameraController;
 	protected boolean escaped;
 	protected int escapeCooldown = 0;
 
 	public ControllerCamera(Player controller, Location location) {
 
-		World world = ((CraftWorld) location.getWorld()).getHandle();
+		ServerLevel world = ((CraftWorld) location.getWorld()).getHandle();
 
-		anchor = new EntityAreaEffectCloud(world, location.getX(), location.getY() + verticalOffset, location.getZ());
+		anchor = new AreaEffectCloud(world, location.getX(), location.getY() + verticalOffset, location.getZ());
 		anchor.setRadius(0);
 		anchor.setInvisible(true);
 		anchor.setParticle(CraftParticle.toNMS(Particle.BLOCK_CRACK, Material.AIR.createBlockData()));
 
-		hitbox = new EntitySlime(EntityTypes.SLIME, world);
+		hitbox = new Slime(EntityType.SLIME, world);
 		hitbox.setInvisible(true);
 		hitbox.setSize(3, false);
 		hitbox.collides = false;
 
-		PacketPlayOutSpawnEntity spawnAnchor = new PacketPlayOutSpawnEntity(anchor);
-		PacketPlayOutEntityMetadata metaAnchor = new PacketPlayOutEntityMetadata(anchor.getId(), anchor.getDataWatcher(), true);
+		ClientboundAddEntityPacket spawnAnchor = new ClientboundAddEntityPacket(anchor);
+		ClientboundSetEntityDataPacket metaAnchor = new ClientboundSetEntityDataPacket(anchor.getId(), anchor.getEntityData(), true);
 
-		PacketPlayOutSpawnEntityLiving spawnHitbox = new PacketPlayOutSpawnEntityLiving(hitbox);
-		PacketPlayOutEntityMetadata metaHitbox = new PacketPlayOutEntityMetadata(hitbox.getId(), hitbox.getDataWatcher(), true);
+		ClientboundAddMobPacket spawnHitbox = new ClientboundAddMobPacket(hitbox);
+		ClientboundSetEntityDataPacket metaHitbox = new ClientboundSetEntityDataPacket(hitbox.getId(), hitbox.getEntityData(), true);
 
-		PacketPlayOutMount mount = new PacketPlayOutMount(anchor);
+		ClientboundSetPassengersPacket mount = new ClientboundSetPassengersPacket(new FriendlyByteBuf(null) {
+			@Override
+			public int[] readVarIntArray() {
+				return new int[] { controller.getEntityId(), hitbox.getId() };
+			}
 
-		try {
-			mount.a(new PacketDataSerializer(null) {
-				@Override
-				public int[] b() {
-					return new int[] { controller.getEntityId(), hitbox.getId() };
-				}
-
-				@Override
-				public int i() {
-					return anchor.getId();
-				}
-			});
-		} catch (IOException ignore){}
+			@Override
+			public int readVarInt() {
+				return anchor.getId();
+			}
+		});
 
 		NMSTools.sendPackets(controller, spawnAnchor, metaAnchor, spawnHitbox, metaHitbox, mount);
 
@@ -92,7 +97,7 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 			return;
 		CameraUtils.instance.getInputManager().unregisterInputTracker(cameraController);
 
-		PacketPlayOutEntityDestroy destroy = new PacketPlayOutEntityDestroy(anchor.getId(), hitbox.getId());
+		ClientboundRemoveEntitiesPacket destroy = new ClientboundRemoveEntitiesPacket(anchor.getId(), hitbox.getId());
 		NMSTools.sendPackets(cameraController, destroy);
 
 		cameraController = null;
@@ -108,7 +113,7 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 	public void asyncInputEvent(WrapperInput input) {
 
 		cameraController.sendActionBar(Component.join(
-				Component.text(" "),
+				JoinConfiguration.separator(Component.text(" ")),
 				Component.keybind("key.forward", input.getForward() > 0 ? white : gray),
 				Component.keybind("key.left", input.getSide() > 0 ? white : gray),
 				Component.keybind("key.back", input.getForward() < 0 ? white : gray),
@@ -180,7 +185,7 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 
 		NMSTools.hideHotbar(NMSTools.getNMSPlayer(player));
 
-		PacketPlayOutEntityEquipment equipment = new PacketPlayOutEntityEquipment(player.getEntityId(), emptyEquipment);
+		ClientboundSetEquipmentPacket equipment = new ClientboundSetEquipmentPacket(player.getEntityId(), emptyEquipment);
 		PacketPlayOutCamera camera = new PacketPlayOutCamera(nmsCameraController);
 
 		NMSTools.sendPackets(player, equipment, camera);
@@ -190,18 +195,18 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 	public void removeViewer(Player player) {
 		super.removeViewer(player);
 
-		EntityPlayer nmsPlayer = NMSTools.getNMSPlayer(player);
+		ServerPlayer nmsPlayer = NMSTools.getNMSPlayer(player);
 
-		List<Pair<EnumItemSlot, ItemStack>> eq = Arrays.asList(
-				new Pair<>(EnumItemSlot.CHEST, nmsPlayer.getEquipment(EnumItemSlot.CHEST)),
-				new Pair<>(EnumItemSlot.FEET, nmsPlayer.getEquipment(EnumItemSlot.FEET)),
-				new Pair<>(EnumItemSlot.HEAD, nmsPlayer.getEquipment(EnumItemSlot.HEAD)),
-				new Pair<>(EnumItemSlot.LEGS, nmsPlayer.getEquipment(EnumItemSlot.LEGS)),
-				new Pair<>(EnumItemSlot.MAINHAND, nmsPlayer.getEquipment(EnumItemSlot.MAINHAND)),
-				new Pair<>(EnumItemSlot.OFFHAND, nmsPlayer.getEquipment(EnumItemSlot.OFFHAND))
+		List<Pair<EquipmentSlot, ItemStack>> eq = Arrays.asList(
+				new Pair<>(EquipmentSlot.CHEST, nmsPlayer.getItemBySlot(EquipmentSlot.CHEST)),
+				new Pair<>(EquipmentSlot.FEET, nmsPlayer.getItemBySlot(EquipmentSlot.FEET)),
+				new Pair<>(EquipmentSlot.HEAD, nmsPlayer.getItemBySlot(EquipmentSlot.HEAD)),
+				new Pair<>(EquipmentSlot.LEGS, nmsPlayer.getItemBySlot(EquipmentSlot.LEGS)),
+				new Pair<>(EquipmentSlot.MAINHAND, nmsPlayer.getItemBySlot(EquipmentSlot.MAINHAND)),
+				new Pair<>(EquipmentSlot.OFFHAND, nmsPlayer.getItemBySlot(EquipmentSlot.OFFHAND))
 		);
-		PacketPlayOutEntityEquipment equipment = new PacketPlayOutEntityEquipment(player.getEntityId(), eq);
-		PacketPlayOutCamera camera = new PacketPlayOutCamera(NMSTools.getNMSPlayer(player));
+		ClientboundSetEquipmentPacket equipment = new ClientboundSetEquipmentPacket(player.getEntityId(), eq);
+		ClientboundTeleportEntityPacket camera = new ClientboundTeleportEntityPacket(NMSTools.getNMSPlayer(player));
 
 		NMSTools.sendPackets(player, equipment, camera);
 	}
@@ -212,33 +217,29 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 		if(isRunning()) {
 			escapeCooldown = (escapeCooldown + 1) % 2;
 			if(escaped && escapeCooldown == 0) {
-				PacketPlayOutMount dismount = new PacketPlayOutMount(anchor);
-				PacketPlayOutMount mount = new PacketPlayOutMount(anchor);
-				try {
-					dismount.a(new PacketDataSerializer(null) {
-						@Override
-						public int[] b() {
-							return new int[] { hitbox.getId() };
-						}
+				ClientboundSetPassengersPacket dismount = new ClientboundSetPassengersPacket(new FriendlyByteBuf(null) {
+					@Override
+					public int[] readVarIntArray() {
+						return new int[] { hitbox.getId() };
+					}
 
-						@Override
-						public int i() {
-							return anchor.getId();
-						}
-					});
-					mount.a(new PacketDataSerializer(null) {
-						@Override
-						public int[] b() {
-							return new int[] { cameraController.getEntityId(), hitbox.getId() };
-						}
+					@Override
+					public int readVarInt() {
+						return anchor.getId();
+					}
+				});
+				ClientboundSetPassengersPacket mount = new ClientboundSetPassengersPacket(new FriendlyByteBuf(null) {
+					@Override
+					public int[] readVarIntArray() {
+						return new int[] { cameraController.getEntityId(), hitbox.getId() };
+					}
 
-						@Override
-						public int i() {
-							return anchor.getId();
-						}
-					});
-					NMSTools.sendPackets(cameraController, dismount, mount);
-				} catch (IOException ignore){}
+					@Override
+					public int readVarInt() {
+						return anchor.getId();
+					}
+				});
+				NMSTools.sendPackets(cameraController, dismount, mount);
 			}
 		}
 
@@ -247,10 +248,11 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 
 	@Override
 	public void setCameraLocation(Location location) {
-		anchor.setLocation(location.getX(), location.getY() + verticalOffset, location.getZ(), 0, 0);
-		nmsCameraController.yaw = location.getYaw();
-		nmsCameraController.aC = location.getYaw();
-		nmsCameraController.pitch = location.getPitch();
+		anchor.moveTo(location.getX(), location.getY() + verticalOffset, location.getZ(), 0, 0);
+		nmsCameraController.setYHeadRot(location.getYaw());
+		nmsCameraController.setYBodyRot(location.getYaw());
+		nmsCameraController.setYRot(location.getYaw());
+		nmsCameraController.setXRot(location.getPitch());
 
 		updateServersidePosition();
 
@@ -261,7 +263,7 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 
 	@Override
 	public void setCameraPosition(Vector position) {
-		anchor.setPosition(position.getX(), position.getY() + verticalOffset, position.getZ());
+		anchor.setPos(position.getX(), position.getY() + verticalOffset, position.getZ());
 
 		updateServersidePosition();
 
@@ -272,16 +274,17 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 
 	@Override
 	public void setCameraRotation(double yaw, double pitch) {
-		nmsCameraController.yaw = (float) yaw;
-		nmsCameraController.aC = (float) yaw;
-		nmsCameraController.pitch = (float) pitch;
+		nmsCameraController.setYHeadRot((float) yaw);
+		nmsCameraController.setYBodyRot((float) yaw);
+		nmsCameraController.setYRot((float) yaw);
+		nmsCameraController.setXRot((float) pitch);
 
 		Vector dir = cameraController.getLocation().getDirection();
-		PacketPlayOutLookAt lookController = new PacketPlayOutLookAt(
-				ArgumentAnchor.Anchor.EYES,
-				nmsCameraController.locX() + dir.getX() * 20,
-				nmsCameraController.locY() + dir.getY() * 20,
-				nmsCameraController.locZ() + dir.getZ() * 20
+		ClientboundPlayerLookAtPacket lookController = new ClientboundPlayerLookAtPacket(
+				EntityAnchorArgument.Anchor.EYES,
+				nmsCameraController.getX() + dir.getX() * 20,
+				nmsCameraController.getY() + dir.getY() * 20,
+				nmsCameraController.getZ() + dir.getZ() * 20
 		);
 
 		NMSTools.sendPackets(cameraController, lookController);
@@ -289,7 +292,7 @@ public class ControllerCamera extends AbstractCamera implements IInputTracker {
 
 	@Override
 	public Location getCurrentLocation() {
-		return new Location(cameraController.getWorld(), anchor.locX(), anchor.locY() - verticalOffset, anchor.locZ(), nmsCameraController.yaw, nmsCameraController.pitch);
+		return new Location(cameraController.getWorld(), anchor.getX(), anchor.getY() - verticalOffset, anchor.getZ(), nmsCameraController.getYRot(), nmsCameraController.getXRot());
 	}
 
 	protected void updateServersidePosition() {
